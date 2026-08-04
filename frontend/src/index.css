@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 主色 — 暖棕系 */
+  --color-brown-900: #3e2723;
+  --color-brown-700: #5d4037;
+  --color-brown-500: #8d6e63;
+  --color-brown-300: #bcaaa4;
+  --color-brown-100: #efebe9;
+
+  /* 背景 — 奶油白 */
+  --color-cream: #fffaf5;
+  --color-cream-dark: #f5f0e8;
+
+  /* 强调 — 活力橙 */
+  --color-orange: #ff7043;
+  --color-orange-light: #ffab91;
+  --color-orange-dark: #e64a19;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-cream text-brown-700 font-sans antialiased;
+}
+
+/* 自定义滚动条 — 咖啡色调 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brown-300);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brown-500);
+}
+
+/* 代码块基础样式（配合 ChatBubble 的简易高亮） */
+.code-block {
+  @apply font-mono text-sm;
+  background: #2d2320;
+  color: #e8dccb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 8px 0;
+}

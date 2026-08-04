@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: javacafe
+  profiles:
+    active: local
+  autoconfigure:
+    exclude:
+      # OpenAiAutoConfiguration 需要 spring.ai.openai.api-key，且 DeepSeek 无 embedding 端点；
+      # ChatModel 由 AgentConfig 自定义提供，EmbeddingModel 由本地 transformers 提供
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/javacafe
+    username: postgres
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:123456}
+  ai:
+    embedding:
+      transformer:
+        onnx:
+          model-uri: file:./data/onnx/model.onnx
+          model-output-path: ./data/onnx/model.onnx
+          tokenizer-uri: file:./data/onnx/tokenizer.json
+          tokenizer-output-path: ./data/onnx/tokenizer.json
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+
+# LLM configuration (override in application-local.yml)
+llm:
+  provider: deepseek
+  api-key: ${LLM_API_KEY:sk-placeholder}
+  model: deepseek-v4-flash
+  base-url: https://api.deepseek.com
+
+# Local file storage
+storage:
+  type: local
+  local:
+    base-path: ./data
+    resume-dir: resumes
+    report-dir: reports
+
+logging:
+  level:
+    com.javacafe: DEBUG
+    org.springframework.ai: DEBUG

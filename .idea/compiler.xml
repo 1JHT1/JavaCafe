@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="javacafe-core" />
+        <module name="javacafe-infrastructure" />
+        <module name="javacafe-web" />
+        <module name="javacafe-api" />
+        <module name="javacafe-common" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="javacafe-assembly" target="21" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="javacafe" options="-parameters" />
+      <module name="javacafe-api" options="-parameters" />
+      <module name="javacafe-common" options="-parameters" />
+      <module name="javacafe-core" options="-parameters" />
+      <module name="javacafe-infrastructure" options="-parameters" />
+      <module name="javacafe-web" options="-parameters" />
+    </option>
+  </component>
+</project>
