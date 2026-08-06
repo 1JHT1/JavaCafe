@@ -4,3 +4,5 @@
 /javacafe-core/target/
 /javacafe-infrastructure/target/
 /javacafe-web/target/
+
+**/application-local.yml

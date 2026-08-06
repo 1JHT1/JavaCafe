@@ -10,14 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Redis-based short-term memory for the current interview session.
- * Maintains a sliding window of recent conversation messages.
+ * 基于 Redis 的短期记忆，用于当前面试会话。
+ * 维护最近对话消息的滑动窗口。
  */
 @Component
 public class ShortTermMemory {
 
     private static final String KEY_PREFIX = "javacafe:session:";
-    private static final Duration TTL = Duration.ofHours(2);
+    private static final Duration TTL = Duration.ofMinutes(30);
 
     private final StringRedisTemplate redisTemplate;
 
@@ -31,7 +31,7 @@ public class ShortTermMemory {
             String entry = role + ":::" + content;
             redisTemplate.opsForList().rightPush(key, entry);
 
-            // Trim to max window size
+            // 裁剪至最大窗口大小
             Long size = redisTemplate.opsForList().size(key);
             if (size != null && size > BusinessConstants.MAX_SHORT_TERM_MESSAGES) {
                 redisTemplate.opsForList().trim(key, size - BusinessConstants.MAX_SHORT_TERM_MESSAGES, -1);

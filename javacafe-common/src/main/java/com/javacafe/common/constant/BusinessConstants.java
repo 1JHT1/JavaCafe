@@ -7,12 +7,12 @@ public final class BusinessConstants {
     public static final String CAFE_NAME = "JavaCafe";
     public static final String AI_PERSONA = "首席咖啡师";
 
-    /** Interview modes — mapped to coffee menu */
+    /** 面试模式 —— 对应咖啡菜单 */
     public enum InterviewMode {
-        POUR_OVER,    // 手冲 — project deep dive
-        AMERICANO,    // 美式 — system design
-        LATTE,        // 拿铁 — Java fundamentals (八股文)
-        SPECIAL       // 当季特调 — mixed mock interview
+        POUR_OVER,    // 手冲 — 项目深挖
+        AMERICANO,    // 美式 — 系统设计
+        LATTE,        // 拿铁 — Java 基础（八股文）
+        SPECIAL       // 当季特调 — 综合模拟面试
     }
 
     public static final String SSE_EVENT_QUESTION = "question";

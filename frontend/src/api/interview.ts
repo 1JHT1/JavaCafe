@@ -1,9 +1,10 @@
 /**
  * 面试相关 API —— 与后端 InterviewController 路由一一对应
  *
- * POST /api/interview/{mode}        → 开始面试，返回 sessionId
- * POST /api/interview/answer        → 提交回答
+ * POST /api/interview/{mode}          → 开始面试，返回 sessionId
+ * POST /api/interview/answer          → 提交回答
  * POST /api/interview/{sessionId}/end → 结束面试并生成杯测报告（报告经 SSE 推送）
+ * POST /api/interview/{sessionId}/cancel → 取消面试，放弃会话不生成报告
  */
 import { http } from './client';
 import type { StartInterviewRequest, UserAnswerRequest } from './types';
@@ -23,10 +24,15 @@ export const interviewApi = {
   end(sessionId: string): Promise<string> {
     return http.post<string>(`/api/interview/${sessionId}/end`);
   },
+
+  /** 取消面试：丢弃会话、不生成报告（前端随后回点单页重新开始） */
+  cancel(sessionId: string): Promise<string> {
+    return http.post<string>(`/api/interview/${sessionId}/cancel`);
+  },
 };
 
 /**
- * 预留接口 —— 后端尚未实现，等提供后可直接启用：
+ * 
  *   - 简历上传：POST /api/resume  (multipart/form-data)
  *   - 历史记录：GET  /api/interview/history
  *   - 用户画像：GET/PUT /api/user/profile

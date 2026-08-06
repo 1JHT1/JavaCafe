@@ -14,12 +14,12 @@ import reactor.core.publisher.Flux;
 import java.util.UUID;
 
 /**
- * REST controller for interview sessions.
- * Routes map to the coffee-menu naming convention from the architecture:
- *   - /api/interview/pour-over  → 手冲 (project deep dive)
- *   - /api/interview/americano  → 美式 (system design)
- *   - /api/interview/latte      → 拿铁 (Java fundamentals)
- *   - /api/interview/special    → 当季特调 (mixed mock)
+ * 面试会话的 REST 控制器。
+ * 路由映射采用架构中的咖啡菜单命名约定：
+ *   - /api/interview/pour-over  → 手冲（项目深挖）
+ *   - /api/interview/americano  → 美式（系统设计）
+ *   - /api/interview/latte      → 拿铁（Java 基础）
+ *   - /api/interview/special    → 当季特调（综合模拟面试）
  */
 @RestController
 @RequestMapping("/api/interview")
@@ -36,40 +36,40 @@ public class InterviewController {
     // ---------- 手冲 (Pour-over) ----------
 
     @PostMapping("/pour-over")
-    public ApiResponse<String> startPourOver(@Valid @RequestBody StartInterviewRequest request) {
+    public ApiResponse<String> startPourOver(@Valid @RequestBody StartInterviewRequest request,
+                                             @RequestAttribute(value = "userId", required = false) String userId) {
         String sessionId = UUID.randomUUID().toString();
-        String userId = getCurrentUserId();
-        sseHandler.registerSession(sessionId, userId, request);
+        sseHandler.registerSession(sessionId, resolveUserId(userId), request);
         return ApiResponse.success(sessionId);
     }
 
     // ---------- 美式 (Americano) ----------
 
     @PostMapping("/americano")
-    public ApiResponse<String> startAmericano(@Valid @RequestBody StartInterviewRequest request) {
+    public ApiResponse<String> startAmericano(@Valid @RequestBody StartInterviewRequest request,
+                                              @RequestAttribute(value = "userId", required = false) String userId) {
         String sessionId = UUID.randomUUID().toString();
-        String userId = getCurrentUserId();
-        sseHandler.registerSession(sessionId, userId, request);
+        sseHandler.registerSession(sessionId, resolveUserId(userId), request);
         return ApiResponse.success(sessionId);
     }
 
     // ---------- 拿铁 (Latte) ----------
 
     @PostMapping("/latte")
-    public ApiResponse<String> startLatte(@Valid @RequestBody StartInterviewRequest request) {
+    public ApiResponse<String> startLatte(@Valid @RequestBody StartInterviewRequest request,
+                                          @RequestAttribute(value = "userId", required = false) String userId) {
         String sessionId = UUID.randomUUID().toString();
-        String userId = getCurrentUserId();
-        sseHandler.registerSession(sessionId, userId, request);
+        sseHandler.registerSession(sessionId, resolveUserId(userId), request);
         return ApiResponse.success(sessionId);
     }
 
     // ---------- 当季特调 (Special) ----------
 
     @PostMapping("/special")
-    public ApiResponse<String> startSpecial(@Valid @RequestBody StartInterviewRequest request) {
+    public ApiResponse<String> startSpecial(@Valid @RequestBody StartInterviewRequest request,
+                                            @RequestAttribute(value = "userId", required = false) String userId) {
         String sessionId = UUID.randomUUID().toString();
-        String userId = getCurrentUserId();
-        sseHandler.registerSession(sessionId, userId, request);
+        sseHandler.registerSession(sessionId, resolveUserId(userId), request);
         return ApiResponse.success(sessionId);
     }
 
@@ -96,8 +96,15 @@ public class InterviewController {
         return ApiResponse.success("ok");
     }
 
-    private String getCurrentUserId() {
-        // Placeholder — real implementation reads from JWT security context
-        return "anonymous";
+    // ---------- Cancel session (discard without report) ----------
+
+    @PostMapping("/{sessionId}/cancel")
+    public ApiResponse<String> cancelSession(@PathVariable("sessionId") String sessionId) {
+        sseHandler.cancelSession(sessionId);
+        return ApiResponse.success("ok");
+    }
+
+    private String resolveUserId(String userId) {
+        return userId == null || userId.isBlank() ? "anonymous" : userId;
     }
 }

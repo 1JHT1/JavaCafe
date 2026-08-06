@@ -1,35 +1,47 @@
 package com.javacafe.core.tools;
 
+import com.javacafe.infra.knowledge.KnowledgeBaseService;
 import com.javacafe.infra.memory.LongTermMemory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
- * RAG-based vector retrieval tool for Java fundamentals (八股文) mode.
- * Retrieves historically relevant interview Q&A from pgvector to provide
- * personalized question selection and avoid repeating mastered topics.
+ * 基于 RAG 的向量检索工具，用于 Java 基础（八股文）模式。
+ * 支持两类检索来源：
+ * 1. 用户历史面试问答（按 userId 隔离），提供个性化选题、避免重复提问；
+ * 2. 预置外部知识库（source 标记隔离），为出题与评估提供知识支撑。
  */
 @Component
 public class VectorRetrievalTool {
 
     private final LongTermMemory longTermMemory;
+    private final KnowledgeBaseService knowledgeBaseService;
 
-    public VectorRetrievalTool(LongTermMemory longTermMemory) {
+    public VectorRetrievalTool(LongTermMemory longTermMemory,
+                               KnowledgeBaseService knowledgeBaseService) {
         this.longTermMemory = longTermMemory;
+        this.knowledgeBaseService = knowledgeBaseService;
     }
 
     /**
-     * Retrieve relevant historical context for the current question.
+     * 检索与当前问题相关的历史上下文。
      */
     public String retrieve(String userId, String currentQuestion) {
         return longTermMemory.buildMemoryContext(userId, currentQuestion);
     }
 
     /**
-     * Retrieve similar past Q&A records for RAG.
+     * 检索给定用户范围内相似的过往问答记录，用于 RAG。
      */
-    public List<String> retrieveSimilarRecords(String query, int topK) {
-        return longTermMemory.retrieveRelevantHistory(query, topK);
+    public List<String> retrieveSimilarRecords(String userId, String query, int topK) {
+        return longTermMemory.retrieveRelevantHistory(userId, query, topK);
+    }
+
+    /**
+     * 从预置外部知识库检索与查询相关的知识分块，返回拼装好的文本上下文。
+     */
+    public String retrieveKnowledge(String query, int topK) {
+        return knowledgeBaseService.retrieve(query, topK);
     }
 }

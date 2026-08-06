@@ -12,8 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Parses uploaded resume files (PDF, Word, TXT) into plain text for LLM analysis.
- * Used primarily by the "手冲 (Pour-over)" project deep-dive workflow.
+ * 将上传的简历文件（PDF、Word、TXT）解析为纯文本，供 LLM 分析。
+ * 主要用于"手冲"项目深挖工作流。
  */
 @Component
 public class ResumeParsingTool {
@@ -26,11 +26,13 @@ public class ResumeParsingTool {
     }
 
     /**
-     * Parse a resume file and return its plain-text content.
+     * 解析简历文件并返回其纯文本内容。
+     * 文件按账号隔离：{basePath}/{resumeDir}/{userId}/{resumeId}。
      */
-    public String parse(String resumeId) {
+    public String parse(String userId, String resumeId) {
+        String uid = userId == null || userId.isBlank() ? "anonymous" : userId;
         Path resumePath = Path.of(storageConfig.getBasePath(),
-                storageConfig.getResumeDir(), resumeId);
+                storageConfig.getResumeDir(), uid, resumeId);
         if (!Files.exists(resumePath)) {
             throw new ResumeParseException("Resume file not found: " + resumeId);
         }
@@ -42,14 +44,14 @@ public class ResumeParsingTool {
     }
 
     /**
-     * Extract key information from the resume text for the interviewer.
+     * 从简历文本中提取关键信息，供面试官使用。
      */
     public String extractKeyInfo(String resumeText) {
         StringBuilder sb = new StringBuilder();
         sb.append("【候选人简历核心信息】\n");
         sb.append(resumeText);
 
-        // Keep full resume text — the LLM handles extraction in-context
+        // 保留完整简历文本——由 LLM 在上下文中自行提取关键信息
         if (resumeText.length() > 4000) {
             return resumeText.substring(0, 4000) + "\n...(简历内容已截断)";
         }

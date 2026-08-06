@@ -12,7 +12,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInterview } from '@/hooks/useInterview';
-import { findMenuByPath, STORAGE_KEYS } from '@/utils/constants';
+import { useUserStore } from '@/stores/userStore';
+import { findMenuByPath, resumeMetaKey } from '@/utils/constants';
 import type { ResumeMeta } from '@/types/user';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
@@ -20,12 +21,13 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { CoffeeBeanSpinner } from '@/components/interview/CoffeeBeanSpinner';
 import { ChatBubble } from '@/components/interview/ChatBubble';
 import { ChatInput } from '@/components/interview/ChatInput';
+import { LatteHeart } from '@/components/interview/LatteHeart';
 import { TypingIndicator } from '@/components/interview/TypingIndicator';
 import { InterviewToolbar } from '@/components/interview/InterviewToolbar';
 
-function loadResumeMeta(): ResumeMeta | null {
+function loadResumeMeta(userId: string): ResumeMeta | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.resumeMeta);
+    const raw = localStorage.getItem(resumeMetaKey(userId));
     return raw ? (JSON.parse(raw) as ResumeMeta) : null;
   } catch {
     return null;
@@ -36,7 +38,20 @@ export default function InterviewPage() {
   const { mode = '' } = useParams();
   const navigate = useNavigate();
   const menu = findMenuByPath(mode);
-  const [resumeMeta] = useState<ResumeMeta | null>(loadResumeMeta);
+  const userId = useUserStore((s) => s.userId);
+  const [resumeMeta, setResumeMeta] = useState<ResumeMeta | null>(() => loadResumeMeta(userId));
+
+  // 登录态切换（登录/退出/换号）时，按当前 userId 重新读取简历关联
+  useEffect(() => {
+    setResumeMeta(loadResumeMeta(userId));
+  }, [userId]);
+
+  // 爱心拉花：提交回答成功后短暂浮现（动画结束后移除）
+  const [showHeart, setShowHeart] = useState(false);
+  const heartTimerRef = useRef<number | null>(null);
+
+  // 取消面试确认弹窗
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const {
     sessionId,
@@ -44,7 +59,6 @@ export default function InterviewPage() {
     isStreaming,
     messages,
     currentRound,
-    maxRounds,
     report,
     starting,
     sending,
@@ -54,8 +68,9 @@ export default function InterviewPage() {
     startInterview,
     submitAnswer,
     endInterview,
+    cancelInterview,
     clearError,
-  } = useInterview(mode);
+  } = useInterview(mode, { resumeId: resumeMeta?.id ?? undefined });
 
   // 自动滚动到底部
   const listRef = useRef<HTMLDivElement>(null);
@@ -65,11 +80,23 @@ export default function InterviewPage() {
   }, [messages, isStreaming]);
 
   // 报告就绪 → 跳转报告页
+  // 仅在会话刚结束的瞬间触发（isActive true→false 且报告就绪）；
+  // 报告已存在时再次进入不跳转，停留在点单页等待用户重新点单。
+  const prevActiveRef = useRef(isActive);
   useEffect(() => {
-    if (report) {
+    const wasActive = prevActiveRef.current;
+    prevActiveRef.current = isActive;
+    if (wasActive && !isActive && report) {
       navigate(`/report/${report.sessionId || sessionId}`, { replace: true });
     }
-  }, [report, sessionId, navigate]);
+  }, [isActive, report, sessionId, navigate]);
+
+  // 卸载时清理爱心计时器
+  useEffect(() => {
+    return () => {
+      if (heartTimerRef.current !== null) window.clearTimeout(heartTimerRef.current);
+    };
+  }, []);
 
   // 无效模式
   if (!menu) {
@@ -95,14 +122,27 @@ export default function InterviewPage() {
     await startInterview();
   };
 
-  const handleSubmit = (text: string) => {
-    void submitAnswer(text);
+  const handleSubmit = async (text: string) => {
+    const ok = await submitAnswer(text);
+    if (ok) {
+      // 提交成功 → 浮现爱心拉花，1.7s 后淡出移除
+      setShowHeart(true);
+      if (heartTimerRef.current !== null) window.clearTimeout(heartTimerRef.current);
+      heartTimerRef.current = window.setTimeout(() => setShowHeart(false), 1700);
+    }
+  };
+
+  // 确认取消：放弃当前会话（不生成报告），回点单页可重新开始
+  const handleCancel = async () => {
+    setCancelConfirmOpen(false);
+    await cancelInterview();
+    navigate('/');
   };
 
   const inputDisabled = !isActive || isStreaming || sending || ending;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <button
@@ -132,8 +172,8 @@ export default function InterviewPage() {
             <h2 className="font-display text-2xl font-bold text-brown-900">{menu.name}</h2>
             <p className="mt-1 text-sm text-brown-500">{menu.subName}</p>
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-brown-700/80">
-              咖啡师将围绕「{menu.description}」进行最多 {maxRounds} 轮提问，请认真作答。
-              每轮回答后咖啡师会给出反馈与追问，结束后自动生成杯测报告。
+              咖啡师将围绕「{menu.description}」持续提问，不设轮数上限。
+              每轮回答后咖啡师会给出反馈与追问，聊得差不多时点击「结束面试」即可生成杯测报告。
             </p>
           </div>
 
@@ -145,19 +185,29 @@ export default function InterviewPage() {
           )}
 
           <Button size="lg" loading={starting} onClick={() => void handleStart()}>
-            研磨咖啡豆，开始面试
+            点单
           </Button>
         </div>
       ) : (
         /* ---- 面试进行中 ---- */
         <>
-          <InterviewToolbar currentRound={currentRound} maxRounds={maxRounds} sseStatus={sseStatus} onEnd={() => void endInterview()} />
+          <InterviewToolbar
+            currentRound={currentRound}
+            sseStatus={sseStatus}
+            onEnd={() => void endInterview()}
+            onCancel={() => setCancelConfirmOpen(true)}
+          />
 
           {/* 消息列表 */}
           <div
             ref={listRef}
-            className="flex h-[60vh] min-h-[420px] flex-col gap-4 overflow-y-auto rounded-3xl bg-white/60 p-5 ring-1 ring-brown-100"
+            className="relative flex h-[60vh] min-h-[420px] flex-col gap-4 overflow-y-auto rounded-3xl bg-white/60 p-5 ring-1 ring-brown-100"
           >
+            {showHeart && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                <LatteHeart className="h-16 w-16 animate-latte-heart" />
+              </div>
+            )}
             {messages.map((msg, index) => (
               <ChatBubble
                 key={msg.id}
@@ -187,6 +237,21 @@ export default function InterviewPage() {
           )}
         </>
       )}
+
+      {/* 取消面试确认弹窗 */}
+      <Modal open={cancelConfirmOpen} title="取消这场面试？" onClose={() => setCancelConfirmOpen(false)}>
+        <p className="text-sm leading-relaxed text-brown-700">
+          当前对话不会生成杯测报告，返回点单页后可以重新开始一场新的面试。
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setCancelConfirmOpen(false)}>
+            继续面试
+          </Button>
+          <Button variant="danger" onClick={() => void handleCancel()}>
+            取消面试
+          </Button>
+        </div>
+      </Modal>
 
       {/* 错误弹窗 */}
       <Modal open={!!error} title="出了点状况" onClose={clearError}>

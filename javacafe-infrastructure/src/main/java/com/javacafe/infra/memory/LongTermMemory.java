@@ -13,10 +13,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * pgvector-based long-term memory for cross-session personalization.
- * Supports:
- * 1. User profile (entity memory) — stored as structured data
- * 2. Historical experience (vector memory) — stored in pgvector for RAG retrieval
+ * 基于 pgvector 的长期记忆，用于跨会话个性化。
+ * 支持：
+ * 1. 用户画像（实体记忆）——以结构化数据存储
+ * 2. 历史经验（向量记忆）——存储在 pgvector 中供 RAG 检索
  */
 @Component
 public class LongTermMemory {
@@ -30,7 +30,7 @@ public class LongTermMemory {
     }
 
     /**
-     * Persist an interview Q&A record as a vector embedding for future retrieval.
+     * 将一条面试问答记录以向量嵌入形式持久化，供后续检索。
      */
     public void storeInterviewRecord(String userId, String sessionId,
                                       String question, String answer,
@@ -40,21 +40,37 @@ public class LongTermMemory {
             Document doc = new Document(content,
                     Map.of("userId", userId, "sessionId", sessionId, "topic", topic));
             vectorStore.add(List.of(doc));
+
+            // 同步落库关系表：供 buildMemoryContext 直接查询，并补全历史记录持久化
+            int roundNumber = recordRepository.findBySessionIdOrderByRoundNumberAsc(sessionId).size();
+            recordRepository.save(InterviewRecordEntity.builder()
+                    .sessionId(sessionId)
+                    .userId(userId)
+                    .question(question)
+                    .answer(answer)
+                    .evaluation(evaluation)
+                    .topic(topic)
+                    .roundNumber(roundNumber)
+                    .build());
         } catch (Exception e) {
-            throw new MemoryAccessException("Failed to store interview record in vector store", e);
+            throw new MemoryAccessException("Failed to store interview record", e);
         }
     }
 
     /**
-     * Retrieve top-K historically relevant records for the current question context.
+     * 检索与当前问题上下文最相关的 Top-K 条历史记录。
+     * 按 userId 过滤，保持每位候选人的记忆相互隔离。
      */
-    public List<String> retrieveRelevantHistory(String query, int topK) {
+    public List<String> retrieveRelevantHistory(String userId, String query, int topK) {
         try {
-            SearchRequest searchRequest = SearchRequest.builder()
+            SearchRequest.Builder searchRequest = SearchRequest.builder()
                     .query(query)
-                    .topK(topK)
-                    .build();
-            List<Document> results = vectorStore.similaritySearch(searchRequest);
+                    .topK(topK);
+            // 仅当 userId 存在时按用户过滤向量检索，避免跨用户记忆串扰
+            if (userId != null && !userId.isBlank()) {
+                searchRequest.filterExpression("userId == '" + userId + "'");
+            }
+            List<Document> results = vectorStore.similaritySearch(searchRequest.build());
             return results.stream()
                     .map(Document::getContent)
                     .collect(Collectors.toList());
@@ -64,7 +80,7 @@ public class LongTermMemory {
     }
 
     /**
-     * Build a textual memory context from the user's past interview records.
+     * 根据用户过往的面试记录构建文本记忆上下文。
      */
     public String buildMemoryContext(String userId, String currentQuestion) {
         List<InterviewRecordEntity> pastRecords = recordRepository.findByUserIdOrderByCreatedAtDesc(userId);
@@ -72,7 +88,7 @@ public class LongTermMemory {
             return "";
         }
 
-        List<String> relevant = retrieveRelevantHistory(currentQuestion,
+        List<String> relevant = retrieveRelevantHistory(userId, currentQuestion,
                 com.javacafe.common.constant.BusinessConstants.DEFAULT_TOP_K_RETRIEVAL);
 
         StringBuilder sb = new StringBuilder();

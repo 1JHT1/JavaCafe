@@ -4,9 +4,9 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
 /**
- * Evaluates system design answers against established criteria:
- * scalability, reliability, consistency, trade-off awareness.
- * Used by the "美式 (Americano)" system design interview mode.
+ * 按照既定标准评估系统设计回答：
+ * 可扩展性、可靠性、一致性、权衡意识。
+ * 用于"美式"系统设计面试模式。
  */
 @Component
 public class SystemDesignEvaluator {

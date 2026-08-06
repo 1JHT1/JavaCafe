@@ -8,6 +8,7 @@
  * 3. 后端 /api/interview/** 为 permitAll，无需 JWT；若后续加鉴权，在 getToken() 处接入。
  */
 import type { ApiResponse } from './types';
+import { STORAGE_KEYS } from '@/utils/constants';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '');
 
@@ -21,16 +22,23 @@ export class ApiError extends Error {
   }
 }
 
-/** 预留：接入 JWT 后从此处读取 token */
-function getToken(): string | null {
-  return null;
+/** 从 localStorage 读取 JWT token（AuthPage 登录成功后写入） */
+export function getToken(): string | null {
+  return localStorage.getItem(STORAGE_KEYS.token);
+}
+
+export function setToken(token: string | null) {
+  if (token) localStorage.setItem(STORAGE_KEYS.token, token);
+  else localStorage.removeItem(STORAGE_KEYS.token);
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // FormData 由浏览器自动设置 multipart 边界，不能手动指定 Content-Type
+  const isFormData = init.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> | undefined),
   };
+  if (!isFormData) headers['Content-Type'] = 'application/json';
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -61,7 +69,18 @@ export const http = {
   post<T>(path: string, body?: unknown): Promise<T> {
     return request<T>(path, {
       method: 'POST',
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+    });
+  },
+
+  put<T>(path: string, body?: unknown): Promise<T> {
+    return request<T>(path, {
+      method: 'PUT',
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+  },
+
+  delete<T>(path: string): Promise<T> {
+    return request<T>(path, { method: 'DELETE' });
   },
 };

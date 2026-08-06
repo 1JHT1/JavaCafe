@@ -16,8 +16,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class InterviewSessionEntity {
 
+    // 主键直接复用前端会话 UUID（SseEmitterHandler.persistSession 显式写入），
+    // 保证历史接口返回的 sessionId 与前端会话一致，前端 fetchHistory 合并去重才生效；
+    // 不再使用数据库自动生成（自动生成的 UUID 与前端不同，导致同一场面试出现两份记录）。
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(nullable = false)

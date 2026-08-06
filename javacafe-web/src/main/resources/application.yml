@@ -40,20 +40,25 @@ spring:
       pgvector:
         initialize-schema: true
 
-# LLM configuration (override in application-local.yml)
+# LLM 配置（可在 application-local.yml 中覆盖）
 llm:
   provider: deepseek
   api-key: ${LLM_API_KEY:sk-placeholder}
   model: deepseek-v4-flash
   base-url: https://api.deepseek.com
 
-# Local file storage
+# 本地文件存储
 storage:
   type: local
   local:
     base-path: ./data
     resume-dir: resumes
     report-dir: reports
+
+# 预置外部知识库（仅拿铁模式 RAG 使用，启动时自动索引 data/knowledge 下的 .md/.txt 文档）
+knowledge:
+  base-path: ./data/knowledge
+  top-k: 5
 
 logging:
   level:

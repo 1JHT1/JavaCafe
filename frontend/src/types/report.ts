@@ -46,3 +46,29 @@ export interface FallbackReport {
   /** 原始 LLM 文本，保留展示 */
   rawText: string;
 }
+
+/** 历史会话摘要（后端 SessionSummaryDto），历史页列表项 */
+export interface SessionSummary {
+  sessionId: string;
+  mode: InterviewMode;
+  createdAt: string;
+  totalRounds: number;
+  score: number;
+  summary: string;
+}
+
+/** 单轮面试问答记录（后端 InterviewRecordDto），历史页"查看对话记录"弹窗数据 */
+export interface InterviewRecord {
+  sessionId: string;
+  /** 面试主题（如 JVM、并发），可能为空 */
+  topic: string;
+  /** 轮次序号（从 0 开始，展示时 +1） */
+  roundNumber: number;
+  /** 面试官题目 */
+  question: string;
+  /** 用户回答 */
+  answer: string;
+  /** 咖啡师评估 */
+  evaluation: string;
+  createdAt: string;
+}

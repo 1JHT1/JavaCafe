@@ -1,6 +1,6 @@
 /**
  * useCountdown —— 倒计时 Hook
- * 用于每日签到冷却、报告生成等待等场景
+ * 用于每日一杯冷却、报告生成等待等场景
  */
 import { useEffect, useMemo, useState } from 'react';
 

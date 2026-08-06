@@ -1,7 +1,7 @@
 # ============================================
-# Download local embedding model (all-MiniLM-L6-v2 ONNX)
-# Uses hf-mirror.com (China mirror) because huggingface.co is blocked
-# Run in PowerShell:  .\download-embedding-model.ps1
+# 下载本地嵌入模型（all-MiniLM-L6-v2 ONNX）
+# 使用 hf-mirror.com（国内镜像），因为 huggingface.co 无法访问
+# 在 PowerShell 中运行：.\download-embedding-model.ps1
 # ============================================
 $ErrorActionPreference = "Stop"
 
@@ -17,14 +17,14 @@ $files = @(
 foreach ($f in $files) {
     $dest = Join-Path $targetDir $f.Name
     if (Test-Path $dest) {
-        Write-Host "[SKIP] $($f.Name) already exists"
+        Write-Host "[跳过] $($f.Name) 已存在"
         continue
     }
-    Write-Host "[DOWNLOAD] $($f.Name) (may take a while, ~90MB for model.onnx)..."
+    Write-Host "[下载] $($f.Name)（可能需要一些时间，model.onnx 约 90MB）..."
     curl.exe -L --fail --progress-bar -o $dest $f.Url
-    if ($LASTEXITCODE -ne 0) { throw "Download failed: $($f.Url)" }
+    if ($LASTEXITCODE -ne 0) { throw "下载失败: $($f.Url)" }
     Write-Host "       -> $dest"
 }
 
 Write-Host ""
-Write-Host "SUCCESS: embedding model files are ready at $targetDir"
+Write-Host "成功：嵌入模型文件已就绪，位于 $targetDir"

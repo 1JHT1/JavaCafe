@@ -5,11 +5,11 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Lightweight, LangGraph-inspired state graph builder.
- * Used to define interview workflow state machines with conditional branching.
+ * 轻量级、受 LangGraph 启发的状态图构建器。
+ * 用于定义带条件分支的面试工作流状态机。
  *
  * <pre>
- * Example usage for DeepDiveWorkflow:
+ * 在 DeepDiveWorkflow 中的使用示例：
  *
  *   StateGraphBuilder<String> builder = new StateGraphBuilder<>();
  *   builder.addNode("ask", this::askQuestion)
@@ -62,7 +62,7 @@ public class StateGraphBuilder<C> {
             }
             ctx = handler.apply(ctx);
 
-            // Resolve next node: conditional edge takes priority
+            // 解析下一节点：条件边优先
             Function<C, String> conditional = conditionalEdges.get(currentNode);
             if (conditional != null) {
                 currentNode = conditional.apply(ctx);

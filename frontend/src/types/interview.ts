@@ -29,8 +29,6 @@ export interface StartInterviewRequest {
   mode: InterviewMode;
   /** 简历文件 ID（手冲模式可选） */
   resumeId?: string;
-  /** 最大轮数，默认 10 */
-  maxRounds?: number;
 }
 
 /** 提交回答请求（后端 UserAnswerRequest） */

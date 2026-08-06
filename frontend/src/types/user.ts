@@ -13,12 +13,18 @@ export interface UserProfile {
 }
 
 /**
- * 简历文件元信息。
- * 后端目前仅有 ResumeParsingTool（按 resumeId 从本地 data/resumes 目录读取），
- * 尚无上传接口 —— 前端先本地持久化文件名，构造 resumeId 后传给后端解析。
+ * 简历文件元信息（后端 ResumeMetaDto）。
+ * id = 清洗后的文件名，即 ResumeParsingTool 读取所用的 resumeId。
  */
 export interface ResumeMeta {
   id: string;
   fileName: string;
   uploadedAt: string;
+}
+
+/** 简历纯文本内容（后端 ResumeContentDto），用于前端回显预览 */
+export interface ResumeContent {
+  id: string;
+  fileName: string;
+  content: string;
 }

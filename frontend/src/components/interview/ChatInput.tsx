@@ -11,7 +11,7 @@ interface ChatInputProps {
   onSubmit: (text: string) => void;
 }
 
-export function ChatInput({ disabled = false, placeholder = '输入你的回答，Ctrl+Enter 发送…', onSubmit }: ChatInputProps) {
+export function ChatInput({ disabled = false, placeholder = '输入你的回答，Enter 发送，Shift+Enter 换行…', onSubmit }: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -24,8 +24,10 @@ export function ChatInput({ disabled = false, placeholder = '输入你的回答�
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd + Enter 发送；Enter 换行
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    // 中文输入法选词中的 Enter 不触发发送
+    if (e.nativeEvent.isComposing) return;
+    // Enter 发送；Shift+Enter 换行
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submit();
     }

@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Loads externalized prompt templates from the classpath.
+ * 从 classpath 加载外部化的提示词模板。
  */
 public final class PromptLoader {
 

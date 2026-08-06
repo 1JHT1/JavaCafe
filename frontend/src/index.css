@@ -56,3 +56,10 @@ body {
   overflow-x: auto;
   margin: 8px 0;
 }
+
+/* Toast 垂直居中：覆盖 sonner 默认顶部定位。
+   容器高度为 0（toast 为绝对定位），translate(-50%,-50%) 的垂直部分不生效，
+   故用 calc(50% - 半个 toast 高) 补偿，--front-toast-height 为 sonner 提供的首个 toast 高度。 */
+[data-sonner-toaster][data-y-position="top"] {
+  top: calc(50% - var(--front-toast-height, 52px) / 2);
+}

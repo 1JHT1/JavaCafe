@@ -1,5 +1,7 @@
 package com.javacafe.core.workflow;
 
+import com.javacafe.core.service.UserProfileService;
+import com.javacafe.core.tools.VectorRetrievalTool;
 import com.javacafe.infra.memory.MemoryManager;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
@@ -9,9 +11,8 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * "当季特调 (Special)" orchestrator — randomly routes across question types
- * for a realistic full-stack mock interview.
- * Simulates the unpredictable flow of a real interview.
+ * "当季特调"调度器——在各类题型之间随机切换，
+ * 模拟真实全栈模拟面试不可预测的提问流程。
  */
 @Component
 public class InterviewOrchestrator {
@@ -23,22 +24,30 @@ public class InterviewOrchestrator {
 
     private final ChatClient chatClient;
     private final MemoryManager memoryManager;
+    private final VectorRetrievalTool vectorRetrievalTool;
+    private final UserProfileService userProfileService;
     private final Random random = new Random();
 
     public InterviewOrchestrator(ChatClient.Builder chatClientBuilder,
-                                  MemoryManager memoryManager) {
+                                  MemoryManager memoryManager,
+                                  VectorRetrievalTool vectorRetrievalTool,
+                                  UserProfileService userProfileService) {
         this.chatClient = chatClientBuilder.build();
         this.memoryManager = memoryManager;
+        this.vectorRetrievalTool = vectorRetrievalTool;
+        this.userProfileService = userProfileService;
     }
 
     public Flux<String> execute(String sessionId, String userId) {
-        String memoryContext = memoryManager.getMemoryContext(userId, "综合面试");
+        String memoryContext = vectorRetrievalTool.retrieve(userId, "综合面试");
         String topic = pickRandomTopic();
+        String profileText = userProfileService.buildProfileText(userId);
 
         return chatClient.prompt()
                 .system("你是JavaCafe的首席咖啡师，正在进行一场综合技术面试。"
                         + "你的风格是随机切换题型，模拟真实大厂面试的不可预测性。\n"
                         + "当前选择的题目类型: " + topic + "\n"
+                        + "## 候选人画像\n" + profileText + "\n\n"
                         + memoryContext)
                 .user("开始当季特调综合面试，第一个问题类型: " + topic)
                 .stream()

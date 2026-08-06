@@ -6,8 +6,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Coordinates read and write operations across short-term and long-term memory.
- * Implements the "Read → Use → Write" loop from the architecture.
+ * 协调短期记忆与长期记忆之间的读写操作。
+ * 实现架构中的"读取 → 使用 → 写入"循环。
  */
 @Component
 public class MemoryManager {
@@ -27,6 +27,20 @@ public class MemoryManager {
     public void recordExchange(String sessionId, String question, String answer) {
         shortTermMemory.appendMessage(sessionId, "interviewer", question);
         shortTermMemory.appendMessage(sessionId, "user", answer);
+    }
+
+    /**
+     * 仅记录用户回答（不产生空的 interviewer 消息），供回答轮次与报告 transcript 使用。
+     */
+    public void recordUserAnswer(String sessionId, String answer) {
+        shortTermMemory.appendMessage(sessionId, "user", answer);
+    }
+
+    /**
+     * 记录 AI 输出的面试题文本，保证后续轮次能提取到题目内容。
+     */
+    public void recordInterviewerMessage(String sessionId, String question) {
+        shortTermMemory.appendMessage(sessionId, "interviewer", question);
     }
 
     public void persistLongTerm(String userId, String sessionId,

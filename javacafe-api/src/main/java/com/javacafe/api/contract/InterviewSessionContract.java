@@ -5,8 +5,8 @@ import com.javacafe.api.dto.UserAnswerRequest;
 import reactor.core.publisher.Flux;
 
 /**
- * Contract interface for the interview session controller.
- * Web layer implements this; core layer depends on this contract.
+ * 面试会话控制器的契约接口。
+ * Web 层实现该接口，core 层依赖此契约。
  */
 public interface InterviewSessionContract {
 

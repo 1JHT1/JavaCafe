@@ -18,7 +18,4 @@ public class StartInterviewRequest {
     private InterviewMode mode;
 
     private String resumeId;
-
-    @Builder.Default
-    private int maxRounds = 10;
 }

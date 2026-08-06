@@ -10,12 +10,14 @@ interface ModalProps {
   title?: string;
   onClose: () => void;
   children: ReactNode;
+  /** 弹窗宽度档位，默认 md（max-w-md），lg 用于对话记录等长内容场景 */
+  size?: 'md' | 'lg';
   /** 点击遮罩是否关闭，默认 true */
   maskClosable?: boolean;
   className?: string;
 }
 
-export function Modal({ open, title, onClose, children, maskClosable = true, className }: ModalProps) {
+export function Modal({ open, title, onClose, children, size = 'md', maskClosable = true, className }: ModalProps) {
   // ESC 关闭
   useEffect(() => {
     if (!open) return;
@@ -39,7 +41,8 @@ export function Modal({ open, title, onClose, children, maskClosable = true, cla
     >
       <div
         className={cn(
-          'w-full max-w-md animate-slide-up rounded-3xl bg-cream p-6 shadow-2xl',
+          'w-full animate-slide-up rounded-3xl bg-cream p-6 shadow-2xl',
+          size === 'lg' ? 'max-w-2xl' : 'max-w-md',
           className,
         )}
       >

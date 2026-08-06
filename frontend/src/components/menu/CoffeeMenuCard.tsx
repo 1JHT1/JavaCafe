@@ -39,7 +39,7 @@ export function CoffeeMenuCard({ item }: CoffeeMenuCardProps) {
       <p className="text-sm leading-relaxed text-brown-700/80">{item.description}</p>
 
       <span className="mt-auto flex items-center gap-1.5 text-sm font-medium text-accent transition-colors group-hover:text-accent-dark">
-        开始面试
+        点单
         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
       </span>
     </Link>

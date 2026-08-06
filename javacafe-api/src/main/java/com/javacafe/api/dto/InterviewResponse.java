@@ -12,8 +12,8 @@ import lombok.NoArgsConstructor;
 public class InterviewResponse {
 
     private String sessionId;
-    private String role;       // "interviewer" | "user"
+    private String role;       // 角色："interviewer" | "user"
     private String content;
-    private String eventType;  // question | message | report | complete | error
+    private String eventType;  // 事件类型：question | message | report | complete | error
     private int roundNumber;
 }

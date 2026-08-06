@@ -1,75 +1,76 @@
 /**
- * DailyCheckIn —— 每日签到（本地记录 + 次日 0 点倒计时）
+ * DailyCheckIn —— 每日一杯（登录用户专属打卡）
  *
- * 协调说明：签到为纯前端功能（localStorage），后端无对应接口；
- * 后续如需积分系统，可在此处接入 POST /api/checkin。
+ * 协调说明：打卡历史按 userId 隔离存 localStorage，登录用户同步服务器
+ * （/api/checkin/dates），任意浏览器/设备登录均可看到账号自己的记录；
+ * 未登录不渲染（HomePage 已整体隐藏打卡足迹区块，此处防御性兜底）；
+ * 每次打卡/外部同步广播 CHECKIN_UPDATED_EVENT，本组件与首页贡献图同步刷新。
+ * 样式为独立小框，由 HomePage 放在打卡足迹区块标题右侧，不额外占用主体空间。
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Coffee, CheckCircle2 } from 'lucide-react';
-import { STORAGE_KEYS } from '@/utils/constants';
-import { useCountdown } from '@/hooks/useCountdown';
+import {
+  CHECKIN_UPDATED_EVENT,
+  loadCheckInDates,
+  notifyCheckInUpdated,
+  persistCheckInDates,
+  todayKey,
+} from '@/utils/checkin';
+import { useUserStore } from '@/stores/userStore';
 import { Button } from '@/components/common/Button';
 
-function todayKey(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/** 下一个 0 点（用于倒计时） */
-function nextMidnight(): Date {
-  const d = new Date();
-  d.setHours(24, 0, 0, 0);
-  return d;
-}
-
 export function DailyCheckIn() {
-  const [checkedDate, setCheckedDate] = useState<string>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.checkInDate) ?? '';
-    } catch {
-      return '';
-    }
-  });
+  const isLoggedIn = useUserStore((s) => s.isLoggedIn);
+  const userId = useUserStore((s) => s.userId);
+  const [checkInDates, setCheckInDates] = useState<string[]>(() => loadCheckInDates(userId));
 
-  const checkedToday = checkedDate === todayKey();
+  // 用户切换（登录/退出/换号）时重置为对应账号的打卡记录
+  useEffect(() => {
+    setCheckInDates(loadCheckInDates(userId));
+  }, [userId]);
 
-  const target = useMemo(() => (checkedToday ? nextMidnight() : null), [checkedToday]);
-  const { text } = useCountdown(target);
+  // 监听打卡变更事件（本页打卡/登录同步/跨标签页）保持状态与本地缓存一致
+  useEffect(() => {
+    const handler = () => setCheckInDates(loadCheckInDates(userId));
+    window.addEventListener(CHECKIN_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(CHECKIN_UPDATED_EVENT, handler);
+  }, [userId]);
+
+  // 未登录不渲染：打卡足迹为登录用户专属功能
+  if (!isLoggedIn) return null;
+
+  const checkedToday = checkInDates.includes(todayKey());
 
   const handleCheckIn = () => {
     const key = todayKey();
-    try {
-      localStorage.setItem(STORAGE_KEYS.checkInDate, key);
-    } catch {
-      // localStorage 不可用时仍允许本次签到
-    }
-    setCheckedDate(key);
-    toast.success('签到成功 ☕ 今日咖啡已备好，开始面试吧！');
+    const next = checkInDates.includes(key) ? checkInDates : [...checkInDates, key];
+    persistCheckInDates(userId, next);
+    notifyCheckInUpdated(next);
+    setCheckInDates(next);
+    toast.success('今日一杯已备好 ☕ 开始面试吧！');
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-3xl bg-brown-700 p-6 text-center text-cream shadow-lg shadow-brown-900/20 sm:flex-row sm:justify-between sm:text-left">
-      <div className="flex items-center gap-4">
-        <span className="flex h-12 w-12 shrink-0 animate-float items-center justify-center rounded-2xl bg-cream/10">
-          {checkedToday ? <CheckCircle2 className="h-6 w-6 text-success" /> : <Coffee className="h-6 w-6 text-accent-light" />}
-        </span>
-        <div>
-          <p className="font-display text-lg font-bold">每日签到</p>
-          <p className="text-sm text-cream/70">
-            {checkedToday ? `今日已签到，明天 ${text} 后解锁新咖啡` : '签到后获得今日面试能量'}
-          </p>
-        </div>
-      </div>
+    <div className="flex shrink-0 items-center gap-2 rounded-xl bg-cream px-2.5 py-1.5 shadow-sm ring-1 ring-brown-200">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cream/60">
+        {checkedToday ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+        ) : (
+          <Coffee className="h-3.5 w-3.5 text-accent-light" />
+        )}
+      </span>
+      <span className="whitespace-nowrap text-xs font-medium text-brown-700">
+        {checkedToday ? '今日已享用' : '每天一杯咖啡'}
+      </span>
       <Button
         variant={checkedToday ? 'outline' : 'primary'}
-        size="md"
+        size="sm"
         disabled={checkedToday}
         onClick={handleCheckIn}
-        className={checkedToday ? 'border-cream/30 text-cream hover:bg-cream/10' : ''}
+        className="h-7 shrink-0 rounded-lg px-2.5 text-xs"
       >
-        {checkedToday ? '已签到' : '立即签到'}
+        {checkedToday ? '已享用' : '打卡'}
       </Button>
     </div>
   );

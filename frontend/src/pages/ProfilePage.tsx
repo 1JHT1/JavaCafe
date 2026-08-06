@@ -7,11 +7,11 @@
  *   简历上传   FileUpload 保存文件元信息到 localStorage；后端 ResumeParsingTool
  *             按 resumeId（= 文件名）从 data/resumes 目录读取，需将简历放入该目录。
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Save, RotateCcw, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserStore } from '@/stores/userStore';
-import { STORAGE_KEYS } from '@/utils/constants';
+import { resumeMetaKey } from '@/utils/constants';
 import type { ResumeMeta } from '@/types/user';
 import { Button } from '@/components/common/Button';
 import { FileUpload } from '@/components/common/FileUpload';
@@ -19,9 +19,9 @@ import { FileUpload } from '@/components/common/FileUpload';
 /** 经验水平选项 */
 const EXPERIENCE_LEVELS = ['在校生', '应届生', '1-3 年', '3-5 年', '5 年以上'];
 
-function loadResumeMeta(): ResumeMeta | null {
+function loadResumeMeta(userId: string): ResumeMeta | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.resumeMeta);
+    const raw = localStorage.getItem(resumeMetaKey(userId));
     return raw ? (JSON.parse(raw) as ResumeMeta) : null;
   } catch {
     return null;
@@ -43,7 +43,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export default function ProfilePage() {
   const profile = useUserStore();
-  const [resumeMeta, setResumeMeta] = useState<ResumeMeta | null>(loadResumeMeta);
+  const [resumeMeta, setResumeMeta] = useState<ResumeMeta | null>(() => loadResumeMeta(profile.userId));
   const [draft, setDraft] = useState({
     displayName: profile.displayName,
     targetPosition: profile.targetPosition,
@@ -53,6 +53,41 @@ export default function ProfilePage() {
   });
 
   const set = (key: keyof typeof draft, value: string) => setDraft((d) => ({ ...d, [key]: value }));
+
+  // 已登录：进入页面时拉取服务器画像并回填表单（游客跳过，使用本地画像）
+  useEffect(() => {
+    void useUserStore
+      .getState()
+      .loadProfileFromServer()
+      .then(() => {
+        const s = useUserStore.getState();
+        setDraft({
+          displayName: s.displayName,
+          targetPosition: s.targetPosition,
+          experienceLevel: s.experienceLevel,
+          strengths: s.strengths,
+          weaknesses: s.weaknesses,
+        });
+      });
+    // 仅挂载时拉取一次，避免与用户编辑中的表单互相覆盖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 登录态切换（登录/退出/换号）时，按当前 userId 重新读取简历关联
+  useEffect(() => {
+    setResumeMeta(loadResumeMeta(profile.userId));
+  }, [profile.userId]);
+
+  // 登录态切换时同步重置画像表单，退出/换号后不残留上一账号的画像
+  useEffect(() => {
+    setDraft({
+      displayName: profile.displayName,
+      targetPosition: profile.targetPosition,
+      experienceLevel: profile.experienceLevel,
+      strengths: profile.strengths,
+      weaknesses: profile.weaknesses,
+    });
+  }, [profile.userId]);
 
   const handleSave = () => {
     if (!draft.displayName.trim()) {
@@ -72,11 +107,14 @@ export default function ProfilePage() {
       strengths: '',
       weaknesses: '',
     });
-    toast.success('已恢复默认画像');
+    // 恢复默认：同步重置简历关联（组件状态 + localStorage），回到未上传状态
+    setResumeMeta(null);
+    localStorage.removeItem(resumeMetaKey(profile.userId));
+    toast.success('已恢复默认设置');
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl animate-fade-in flex-col gap-5">
+    <div className="flex w-full animate-fade-in flex-col gap-5">
       {/* 标题 */}
       <div className="flex items-center gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brown-100 text-brown-700">

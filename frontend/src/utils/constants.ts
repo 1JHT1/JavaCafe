@@ -11,7 +11,7 @@ export const COFFEE_MENU: CoffeeModeMeta[] = [
     name: '手冲',
     subName: 'Pour-over',
     description: '项目深挖 · 连环追问',
-    icon: '🫘',
+    icon: '🍶',
     needResume: true,
   },
   {
@@ -55,9 +55,6 @@ export function modeToChinese(mode: InterviewMode | string): string {
   return COFFEE_MENU.find((item) => item.enum === mode)?.name ?? mode;
 }
 
-/** 默认最大面试轮数（后端 StartInterviewRequest 默认值一致） */
-export const DEFAULT_MAX_ROUNDS = 10;
-
 /** 本地存储键 */
 export const STORAGE_KEYS = {
   /** 面试历史报告列表 */
@@ -66,6 +63,20 @@ export const STORAGE_KEYS = {
   userProfile: 'javacafe.user.profile',
   /** 已上传简历元信息 */
   resumeMeta: 'javacafe.resume.meta',
-  /** 每日签到日期（yyyy-MM-dd） */
+  /** 每日一杯日期（yyyy-MM-dd，兼容旧单值键） */
   checkInDate: 'javacafe.checkin.date',
+  /** 每日一杯打卡历史（yyyy-MM-dd 数组，升序） */
+  checkInDates: 'javacafe.checkin.dates',
+  /** JWT 访问令牌 */
+  token: 'javacafe.token',
 } as const;
+
+/** 简历元信息存储键（按 userId 隔离，避免跨账号可见；游客固定 anonymous） */
+export function resumeMetaKey(userId: string): string {
+  return `${STORAGE_KEYS.resumeMeta}:${userId || 'anonymous'}`;
+}
+
+/** 打卡历史存储键（按 userId 隔离，打卡足迹仅登录用户可见；游客固定 anonymous 承接旧数据迁移） */
+export function checkInDatesKey(userId: string): string {
+  return `${STORAGE_KEYS.checkInDates}:${userId || 'anonymous'}`;
+}

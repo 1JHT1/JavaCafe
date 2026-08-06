@@ -5,14 +5,17 @@
  *   报告来源优先级：
  *     1. 本次会话 store.report（经 SSE report 事件 + normalizeReport 解析）
  *     2. 本地历史 history（localStorage 兜底，见 interviewStore.addToHistory）
- *   后端暂无 GET /api/interview/report/{sessionId} 查询接口，提供后可切换为接口拉取。
- *   report 事件推送的是 LLM 自由文本，解析失败时展示降级报告 + 原始文本（rawText）。
+ *     3. 后端 GET /api/interview/report/{sessionId}（历史会话详情，返回原始报告文本，
+ *        前端 normalizeReport 降级解析，与 SSE report 事件同一链路）
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, FileText, RotateCcw, Sparkles, AlertTriangle } from 'lucide-react';
-import { useInterviewStore } from '@/stores/interviewStore';
-import { formatDateTime, reportModeLabel } from '@/utils/format';
+import { useInterviewStore, type InterviewReport } from '@/stores/interviewStore';
+import { formatDateTime, normalizeReport, reportModeLabel } from '@/utils/format';
+import { historyApi } from '@/api/history';
+import { parseReportPayload } from '@/api/sse';
+import type { InterviewMode } from '@/types/interview';
 import type { CupNoteReport, FallbackReport } from '@/types/report';
 import { Button } from '@/components/common/Button';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -30,13 +33,41 @@ function isFallbackReport(report: CupNoteReport | FallbackReport): report is Fal
 export default function ReportPage() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
-  const liveReport = useInterviewStore((s) => s.report);
+  // 报告可能在任意咖啡会话分区中（刚完成的面试），按 sessionId 匹配
+  const sessions = useInterviewStore((s) => s.sessions);
   const history = useInterviewStore((s) => s.history);
+  // 历史会话详情：本地没有时从后端拉取（原始报告文本 → normalizeReport 降级解析）
+  const [remoteReport, setRemoteReport] = useState<InterviewReport | null>(null);
 
   const report = useMemo(() => {
-    if (liveReport && (!sessionId || liveReport.sessionId === sessionId)) return liveReport;
-    return history.find((r) => r.sessionId === sessionId) ?? null;
-  }, [liveReport, history, sessionId]);
+    const modes = Object.keys(sessions) as InterviewMode[];
+    for (const m of modes) {
+      const r = sessions[m].report;
+      if (r && (!sessionId || r.sessionId === sessionId)) return r;
+    }
+    return history.find((r) => r.sessionId === sessionId) ?? remoteReport;
+  }, [sessions, history, remoteReport, sessionId]);
+
+  // 本地（store.report / history）均无此会话时，回退到后端查询接口
+  useEffect(() => {
+    if (report || !sessionId) return;
+    let cancelled = false;
+    void historyApi
+      .getReport(sessionId)
+      .then((text) => {
+        if (cancelled) return;
+        const known = history.find((r) => r.sessionId === sessionId);
+        setRemoteReport(
+          normalizeReport(parseReportPayload(text), sessionId, known?.mode ?? ('SPECIAL' as InterviewMode), known?.totalRounds ?? 0),
+        );
+      })
+      .catch(() => {
+        // 会话不存在或暂无报告：保持空状态展示
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [report, sessionId, history]);
 
   if (!report) {
     return (
@@ -55,7 +86,7 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl animate-fade-in flex-col gap-5">
+    <div className="flex w-full animate-fade-in flex-col gap-5">
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <button
