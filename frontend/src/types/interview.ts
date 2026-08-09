@@ -51,6 +51,8 @@ export type SseEventType = 'question' | 'message' | 'report' | 'complete' | 'err
 export interface SseEvent {
   type: SseEventType;
   data: string;
+  /** 会话内事件序号（后端 SSE id 字段）：刷新重连重放时按此去重续传 */
+  seq?: number;
 }
 
 /** 对话消息 */

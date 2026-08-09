@@ -65,7 +65,6 @@ export const http = {
   get<T>(path: string): Promise<T> {
     return request<T>(path, { method: 'GET' });
   },
-
   post<T>(path: string, body?: unknown): Promise<T> {
     return request<T>(path, {
       method: 'POST',
@@ -84,3 +83,25 @@ export const http = {
     return request<T>(path, { method: 'DELETE' });
   },
 };
+
+/**
+ * 下载文件（Blob）——与 request 同源（鉴权头、错误解包一致），但返回原始 Blob，
+ * 用于「下载杯测报告」等附件场景，由调用方触发浏览器保存。
+ */
+export async function downloadFile(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { method: 'GET', headers });
+  } catch {
+    throw new ApiError(0, '网络连接失败，请确认后端服务已启动');
+  }
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new ApiError(res.status, err.message || `请求失败 (HTTP ${res.status})`);
+  }
+  return res.blob();
+}

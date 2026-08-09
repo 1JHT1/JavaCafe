@@ -6,6 +6,7 @@
  */
 import { useCallback, useState } from 'react';
 import { interviewApi } from '@/api/interview';
+import { closeSse } from '@/api/sseManager';
 import { useInterviewStore } from '@/stores/interviewStore';
 import { pathToEnum } from '@/utils/constants';
 import { useSSE, type SseStatus } from './useSSE';
@@ -111,7 +112,10 @@ export function useInterview(modePath: string, options: UseInterviewOptions = {}
       try {
         await interviewApi.cancel(currentSessionId);
       } catch {
-        // 后端不可达时忽略：本地照常重置会话，SSE 随 isActive=false 断开
+        // 后端不可达时忽略：本地照常重置会话
+      } finally {
+        // 会话已放弃：无论后端是否可达都关闭前端连接，避免残留重连
+        closeSse(currentSessionId);
       }
     }
     store.reset(mode);

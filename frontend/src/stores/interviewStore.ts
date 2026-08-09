@@ -7,10 +7,12 @@
  * history（报告历史）为全局列表（localStorage 兜底）。
  */
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { ChatMessage, InterviewMode } from '@/api/types';
 import type { CupNoteReport, FallbackReport } from '@/types/report';
 import { STORAGE_KEYS } from '@/utils/constants';
 import { historyApi } from '@/api/history';
+import { normalizeReport } from '@/utils/format';
 
 export type InterviewReport = CupNoteReport | FallbackReport;
 
@@ -46,6 +48,10 @@ export interface ModeSession {
   /** 轮次 = AI 已提出的题目数（第 1 题起即 1） */
   currentRound: number;
   report: InterviewReport | null;
+  /** 正在生成杯测报告（刷新后据此恢复已落库报告） */
+  reportPending: boolean;
+  /** 已处理的最大 SSE 事件序号（重连重放去重基准，刷新后恢复） */
+  lastEventSeq: number;
 }
 
 function emptyModeSession(): ModeSession {
@@ -56,6 +62,8 @@ function emptyModeSession(): ModeSession {
     messages: [],
     currentRound: 0,
     report: null,
+    reportPending: false,
+    lastEventSeq: 0,
   };
 }
 
@@ -66,6 +74,9 @@ const EMPTY_SESSIONS: Record<InterviewMode, ModeSession> = {
   LATTE: emptyModeSession(),
   SPECIAL: emptyModeSession(),
 };
+
+/** 四种咖啡模式（持久化恢复 / 报告兜底拉取的遍历顺序） */
+const MODES: InterviewMode[] = ['POUR_OVER', 'AMERICANO', 'LATTE', 'SPECIAL'];
 
 interface InterviewState {
   /** 按咖啡模式分区的会话状态 */
@@ -81,6 +92,10 @@ interface InterviewState {
   setStreaming: (mode: InterviewMode, streaming: boolean) => void;
   incrementRound: (mode: InterviewMode) => void;
   setReport: (mode: InterviewMode, report: InterviewReport) => void;
+  /** 标记会话正在生成杯测报告（刷新后用于恢复报告） */
+  setReportPending: (mode: InterviewMode, pending: boolean) => void;
+  /** 记录已处理的最大 SSE 事件序号（重连重放去重基准） */
+  setLastEventSeq: (mode: InterviewMode, seq: number) => void;
   /** 报告完成后写入本地历史 */
   addToHistory: (report: InterviewReport) => void;
   /** 从本地历史移除一条报告（删除记录后同步清理缓存） */
@@ -95,7 +110,9 @@ interface InterviewState {
 
 let messageSeq = 0;
 
-export const useInterviewStore = create<InterviewState>((set) => ({
+export const useInterviewStore = create<InterviewState>()(
+  persist(
+    (set) => ({
   sessions: EMPTY_SESSIONS,
   history: loadHistory(),
 
@@ -111,6 +128,9 @@ export const useInterviewStore = create<InterviewState>((set) => ({
           currentRound: 0,
           messages: [],
           report: null,
+          reportPending: false,
+          // 新会话事件序号从 1 开始，重置基准避免旧序号误杀新事件
+          lastEventSeq: 0,
         },
       },
     })),
@@ -174,6 +194,22 @@ export const useInterviewStore = create<InterviewState>((set) => ({
       },
     })),
 
+  setReportPending: (mode, pending) =>
+    set((state) => ({
+      sessions: {
+        ...state.sessions,
+        [mode]: { ...state.sessions[mode], reportPending: pending },
+      },
+    })),
+
+  setLastEventSeq: (mode, seq) =>
+    set((state) => ({
+      sessions: {
+        ...state.sessions,
+        [mode]: { ...state.sessions[mode], lastEventSeq: seq },
+      },
+    })),
+
   addToHistory: (report) =>
     set((state) => {
       const next = [report, ...state.history].slice(0, MAX_HISTORY);
@@ -203,9 +239,9 @@ export const useInterviewStore = create<InterviewState>((set) => ({
         totalRounds: s.totalRounds,
         score: s.score,
         summary: s.summary,
-        strengths: [],
-        weaknesses: [],
-        suggestions: [],
+        strengths: s.strengths,
+        weaknesses: s.weaknesses,
+        suggestions: s.suggestions,
       }));
       set((state) => {
         // 接口列表优先；本地新增但尚未落库的会话追加在末尾，避免刚完成的报告丢失
@@ -231,8 +267,59 @@ export const useInterviewStore = create<InterviewState>((set) => ({
     }
   },
 
-  reset: (mode) =>
-    set((state) => ({
-      sessions: { ...state.sessions, [mode]: emptyModeSession() },
-    })),
-}));
+    reset: (mode) =>
+      set((state) => ({
+        sessions: { ...state.sessions, [mode]: emptyModeSession() },
+      })),
+    }),
+    {
+      name: STORAGE_KEYS.interviewSessions,
+      // 仅持久化会话分区；history 沿用既有 localStorage 兜底机制，避免双写冲突
+      partialize: (state) => ({ sessions: state.sessions }),
+      merge: (persisted, current) => {
+        const raw = (persisted ?? {}) as { sessions?: Partial<Record<InterviewMode, ModeSession>> };
+        if (!raw.sessions) return current;
+        const sessions = {} as Record<InterviewMode, ModeSession>;
+        for (const mode of MODES) {
+          const saved = raw.sessions[mode] ?? emptyModeSession();
+          // 半截消息保留：后端 replay sink 会重放续传分片（事件带序号，前端按序去重），
+          // isStreaming 保持原值以驱动续传 append；AI 若已输出完毕，重放的 complete 事件会复位
+          sessions[mode] = {
+            ...emptyModeSession(),
+            ...saved,
+            messages: Array.isArray(saved.messages) ? saved.messages : [],
+          };
+        }
+        return { ...current, sessions };
+      },
+      onRehydrateStorage: () => (state) => {
+        // 刷新时正处报告生成中（reportPending=true）：报告一旦落库即可拉取。
+        // 成功则结束会话并写入本地历史；失败说明后端仍在生成，保持现状，稍后可从历史页查看
+        if (!state) return;
+        for (const mode of MODES) {
+          const session = state.sessions[mode];
+          if (!session.isActive || !session.sessionId || !session.reportPending) continue;
+          const sessionId = session.sessionId;
+          void historyApi
+            .getReport(sessionId)
+            .then((reportText) => {
+              const report = normalizeReport(reportText, sessionId, mode, Math.max(session.currentRound, 1));
+              useInterviewStore.setState((st) => ({
+                sessions: {
+                  ...st.sessions,
+                  [mode]: { ...st.sessions[mode], report, isActive: false, reportPending: false },
+                },
+              }));
+              useInterviewStore.getState().addToHistory(report);
+            })
+            .catch(() => {
+              // 报告尚未落库：仅清除标记，会话维持原状（对话界面，用户可自行返回）
+              useInterviewStore.setState((st) => ({
+                sessions: { ...st.sessions, [mode]: { ...st.sessions[mode], reportPending: false } },
+              }));
+            });
+        }
+      },
+    },
+  ),
+);

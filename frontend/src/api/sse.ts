@@ -56,25 +56,31 @@ export class SseClient {
       this.options.onStatusChange?.('open');
     });
 
-    es.addEventListener('question', (e) => this.dispatch('question', (e as MessageEvent).data));
-    es.addEventListener('message', (e) => this.dispatch('message', (e as MessageEvent).data));
-    es.addEventListener('report', (e) => this.dispatch('report', (e as MessageEvent).data));
-    es.addEventListener('complete', () => this.dispatch('complete', '{}'));
+    es.addEventListener('question', (e) => this.dispatch('question', (e as MessageEvent).data, (e as MessageEvent).lastEventId));
+    es.addEventListener('message', (e) => this.dispatch('message', (e as MessageEvent).data, (e as MessageEvent).lastEventId));
+    es.addEventListener('report', (e) => this.dispatch('report', (e as MessageEvent).data, (e as MessageEvent).lastEventId));
+    es.addEventListener('complete', (e) => this.dispatch('complete', '{}', (e as MessageEvent).lastEventId));
     es.addEventListener('error', (e) => {
       // EventSource 的 error 事件通道被两类事件共用：
       //   1) 网络/连接错误（Event 类型，无 data）→ 走重连逻辑
       //   2) 服务端推送的命名 error 事件（MessageEvent，带 data）→ 正常派发
       const ev = e as MessageEvent;
       if (ev.data != null) {
-        this.dispatch('error', ev.data);
+        this.dispatch('error', ev.data, ev.lastEventId);
         return;
       }
       this.handleError();
     });
   }
 
-  private dispatch(type: SseEventType, data: string): void {
-    this.options.onEvent({ type, data });
+  private dispatch(type: SseEventType, data: string, lastEventId?: string): void {
+    // SSE 事件 id（会话内序号）：用于刷新重连重放时去重，无 id 的旧版事件保持兼容
+    const seq = lastEventId ? Number(lastEventId) : undefined;
+    this.options.onEvent({
+      type,
+      data,
+      ...(seq !== undefined && !Number.isNaN(seq) ? { seq } : {}),
+    });
   }
 
   private handleError(): void {

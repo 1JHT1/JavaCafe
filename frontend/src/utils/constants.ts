@@ -27,7 +27,7 @@ export const COFFEE_MENU: CoffeeModeMeta[] = [
     enum: 'LATTE',
     name: '拿铁',
     subName: 'Latte',
-    description: '八股文问答 · Java基础',
+    description: '八股文问答 · 各类考点',
     icon: '🤎',
   },
   {
@@ -59,6 +59,8 @@ export function modeToChinese(mode: InterviewMode | string): string {
 export const STORAGE_KEYS = {
   /** 面试历史报告列表 */
   reportHistory: 'javacafe.report.history',
+  /** 进行中的面试会话（4 种模式分区持久化，刷新后恢复续聊） */
+  interviewSessions: 'javacafe.interview.sessions',
   /** 用户画像 */
   userProfile: 'javacafe.user.profile',
   /** 已上传简历元信息 */

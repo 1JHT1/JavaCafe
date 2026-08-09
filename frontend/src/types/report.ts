@@ -55,6 +55,11 @@ export interface SessionSummary {
   totalRounds: number;
   score: number;
   summary: string;
+  /** 优势亮点（历史页能力雷达图聚合数据源） */
+  strengths: StrengthPoint[];
+  /** 薄弱环节（历史页能力雷达图聚合数据源） */
+  weaknesses: WeaknessPoint[];
+  suggestions: string[];
 }
 
 /** 单轮面试问答记录（后端 InterviewRecordDto），历史页"查看对话记录"弹窗数据 */

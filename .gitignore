@@ -1,8 +1,4 @@
 # 项目排除路径
-/javacafe-api/target/
-/javacafe-common/target/
-/javacafe-core/target/
-/javacafe-infrastructure/target/
-/javacafe-web/target/
+**/target/
 
 **/application-local.yml
