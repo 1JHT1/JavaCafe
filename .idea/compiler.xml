@@ -13,9 +13,6 @@
         <module name="javacafe-common" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="javacafe-assembly" target="21" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
