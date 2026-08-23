@@ -14,7 +14,6 @@ JavaCafe 是一款 **AI 驱动的 Java 面试模拟与辅导工具**。以"咖�
 | Java | 21 |
 | Spring Boot | 3.3.2 (WebFlux 响应式) |
 | Spring AI | 1.0.0-M5 |
-| LangChain4j | 0.33.0 |
 | LLM 模型 | DeepSeek (deepseek-v4-flash) |
 | Embedding 模型 | 本地 ONNX all-MiniLM-L6-v2 |
 | 数据库 | PostgreSQL + pgvector 向量扩展 |
